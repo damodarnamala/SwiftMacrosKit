@@ -6,11 +6,25 @@ import SwiftSyntax
 import SwiftSyntaxMacros
 import SwiftDiagnostics
 
+// MARK: - Shared helper for peer macro backing storage
+
+private func makePeerStorage(for declaration: some DeclSyntaxProtocol) -> [DeclSyntax] {
+    guard let varDecl = declaration.as(VariableDeclSyntax.self),
+          let name = varDecl.propertyName,
+          let type = varDecl.propertyTypeName else {
+        return []
+    }
+    if let initialValue = varDecl.initialValue {
+        return ["var _\(raw: name): \(raw: type) = \(initialValue)"]
+    }
+    return ["var _\(raw: name): \(raw: type)"]
+}
+
 // MARK: - ValidatedMacro
 
-/// Adds a `didSet` accessor that validates a property using a predicate closure.
+/// Validates a property using a predicate closure via get/set accessors.
 /// Usage: `@Validated({ $0 > 0 }) var count: Int = 1`
-public struct ValidatedMacro: AccessorMacro {
+public struct ValidatedMacro: AccessorMacro, PeerMacro {
     public static func expansion(
         of node: AttributeSyntax,
         providingAccessorsOf declaration: some DeclSyntaxProtocol,
@@ -28,23 +42,32 @@ public struct ValidatedMacro: AccessorMacro {
             return []
         }
 
-        let accessor: AccessorDeclSyntax = """
-        didSet {
+        let getter: AccessorDeclSyntax = "get { _\(raw: name) }"
+        let setter: AccessorDeclSyntax = """
+        set {
             let validate = \(predicateExpr)
-            if !validate(\(raw: name)) {
-                \(raw: name) = oldValue
+            if validate(newValue) {
+                _\(raw: name) = newValue
             }
         }
         """
-        return [accessor]
+        return [getter, setter]
+    }
+
+    public static func expansion(
+        of node: AttributeSyntax,
+        providingPeersOf declaration: some DeclSyntaxProtocol,
+        in context: some MacroExpansionContext
+    ) throws -> [DeclSyntax] {
+        makePeerStorage(for: declaration)
     }
 }
 
 // MARK: - NonEmptyMacro
 
-/// Guards against empty `String` or `Array` assignments by reverting to `oldValue`.
+/// Guards against empty `String` or `Array` assignments.
 /// Usage: `@NonEmpty var name: String = "default"`
-public struct NonEmptyMacro: AccessorMacro {
+public struct NonEmptyMacro: AccessorMacro, PeerMacro {
     public static func expansion(
         of node: AttributeSyntax,
         providingAccessorsOf declaration: some DeclSyntaxProtocol,
@@ -56,14 +79,23 @@ public struct NonEmptyMacro: AccessorMacro {
             return []
         }
 
-        let accessor: AccessorDeclSyntax = """
-        didSet {
-            if \(raw: name).isEmpty {
-                \(raw: name) = oldValue
+        let getter: AccessorDeclSyntax = "get { _\(raw: name) }"
+        let setter: AccessorDeclSyntax = """
+        set {
+            if !newValue.isEmpty {
+                _\(raw: name) = newValue
             }
         }
         """
-        return [accessor]
+        return [getter, setter]
+    }
+
+    public static func expansion(
+        of node: AttributeSyntax,
+        providingPeersOf declaration: some DeclSyntaxProtocol,
+        in context: some MacroExpansionContext
+    ) throws -> [DeclSyntax] {
+        makePeerStorage(for: declaration)
     }
 }
 
@@ -71,7 +103,7 @@ public struct NonEmptyMacro: AccessorMacro {
 
 /// Clamps a numeric property value to a `min...max` range.
 /// Usage: `@Clamped(min: 0, max: 100) var percentage: Int = 50`
-public struct ClampedMacro: AccessorMacro {
+public struct ClampedMacro: AccessorMacro, PeerMacro {
     public static func expansion(
         of node: AttributeSyntax,
         providingAccessorsOf declaration: some DeclSyntaxProtocol,
@@ -91,21 +123,35 @@ public struct ClampedMacro: AccessorMacro {
             return []
         }
 
-        let accessor: AccessorDeclSyntax = """
-        didSet {
-            if \(raw: name) < \(minExpr) { \(raw: name) = \(minExpr) }
-            if \(raw: name) > \(maxExpr) { \(raw: name) = \(maxExpr) }
+        let getter: AccessorDeclSyntax = "get { _\(raw: name) }"
+        let setter: AccessorDeclSyntax = """
+        set {
+            if newValue < \(minExpr) {
+                _\(raw: name) = \(minExpr)
+            } else if newValue > \(maxExpr) {
+                _\(raw: name) = \(maxExpr)
+            } else {
+                _\(raw: name) = newValue
+            }
         }
         """
-        return [accessor]
+        return [getter, setter]
+    }
+
+    public static func expansion(
+        of node: AttributeSyntax,
+        providingPeersOf declaration: some DeclSyntaxProtocol,
+        in context: some MacroExpansionContext
+    ) throws -> [DeclSyntax] {
+        makePeerStorage(for: declaration)
     }
 }
 
 // MARK: - RegexValidatedMacro
 
-/// Validates a `String` property against a regex pattern, reverting on mismatch.
+/// Validates a `String` property against a regex pattern.
 /// Usage: `@RegexValidated("^[0-9]+$") var code: String = "123"`
-public struct RegexValidatedMacro: AccessorMacro {
+public struct RegexValidatedMacro: AccessorMacro, PeerMacro {
     public static func expansion(
         of node: AttributeSyntax,
         providingAccessorsOf declaration: some DeclSyntaxProtocol,
@@ -123,15 +169,24 @@ public struct RegexValidatedMacro: AccessorMacro {
             return []
         }
 
-        let accessor: AccessorDeclSyntax = """
-        didSet {
+        let getter: AccessorDeclSyntax = "get { _\(raw: name) }"
+        let setter: AccessorDeclSyntax = """
+        set {
             let pattern = \(literal: pattern)
-            if \(raw: name).range(of: pattern, options: .regularExpression) == nil {
-                \(raw: name) = oldValue
+            if newValue.range(of: pattern, options: .regularExpression) != nil {
+                _\(raw: name) = newValue
             }
         }
         """
-        return [accessor]
+        return [getter, setter]
+    }
+
+    public static func expansion(
+        of node: AttributeSyntax,
+        providingPeersOf declaration: some DeclSyntaxProtocol,
+        in context: some MacroExpansionContext
+    ) throws -> [DeclSyntax] {
+        makePeerStorage(for: declaration)
     }
 }
 
@@ -139,7 +194,7 @@ public struct RegexValidatedMacro: AccessorMacro {
 
 /// Validates that a `String` property contains a valid email format.
 /// Usage: `@Email var email: String = "user@example.com"`
-public struct EmailMacro: AccessorMacro {
+public struct EmailMacro: AccessorMacro, PeerMacro {
     public static func expansion(
         of node: AttributeSyntax,
         providingAccessorsOf declaration: some DeclSyntaxProtocol,
@@ -151,16 +206,25 @@ public struct EmailMacro: AccessorMacro {
             return []
         }
 
-        let accessor: AccessorDeclSyntax = """
-        didSet {
+        let getter: AccessorDeclSyntax = "get { _\(raw: name) }"
+        let setter: AccessorDeclSyntax = """
+        set {
             let pattern = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\\\.[A-Za-z]{2,}"
             let pred = NSPredicate(format: "SELF MATCHES %@", pattern)
-            if !pred.evaluate(with: \(raw: name)) {
-                \(raw: name) = oldValue
+            if pred.evaluate(with: newValue) {
+                _\(raw: name) = newValue
             }
         }
         """
-        return [accessor]
+        return [getter, setter]
+    }
+
+    public static func expansion(
+        of node: AttributeSyntax,
+        providingPeersOf declaration: some DeclSyntaxProtocol,
+        in context: some MacroExpansionContext
+    ) throws -> [DeclSyntax] {
+        makePeerStorage(for: declaration)
     }
 }
 
@@ -168,7 +232,7 @@ public struct EmailMacro: AccessorMacro {
 
 /// Validates that a `String` property contains a valid URL.
 /// Usage: `@URLValidated var link: String = "https://example.com"`
-public struct URLValidatedMacro: AccessorMacro {
+public struct URLValidatedMacro: AccessorMacro, PeerMacro {
     public static func expansion(
         of node: AttributeSyntax,
         providingAccessorsOf declaration: some DeclSyntaxProtocol,
@@ -180,14 +244,23 @@ public struct URLValidatedMacro: AccessorMacro {
             return []
         }
 
-        let accessor: AccessorDeclSyntax = """
-        didSet {
-            if URL(string: \(raw: name)) == nil {
-                \(raw: name) = oldValue
+        let getter: AccessorDeclSyntax = "get { _\(raw: name) }"
+        let setter: AccessorDeclSyntax = """
+        set {
+            if URL(string: newValue) != nil {
+                _\(raw: name) = newValue
             }
         }
         """
-        return [accessor]
+        return [getter, setter]
+    }
+
+    public static func expansion(
+        of node: AttributeSyntax,
+        providingPeersOf declaration: some DeclSyntaxProtocol,
+        in context: some MacroExpansionContext
+    ) throws -> [DeclSyntax] {
+        makePeerStorage(for: declaration)
     }
 }
 
@@ -195,7 +268,7 @@ public struct URLValidatedMacro: AccessorMacro {
 
 /// Enforces a minimum count/length on a `String` or `Array` property.
 /// Usage: `@MinLength(3) var username: String = "abc"`
-public struct MinLengthMacro: AccessorMacro {
+public struct MinLengthMacro: AccessorMacro, PeerMacro {
     public static func expansion(
         of node: AttributeSyntax,
         providingAccessorsOf declaration: some DeclSyntaxProtocol,
@@ -213,14 +286,23 @@ public struct MinLengthMacro: AccessorMacro {
             return []
         }
 
-        let accessor: AccessorDeclSyntax = """
-        didSet {
-            if \(raw: name).count < \(minExpr) {
-                \(raw: name) = oldValue
+        let getter: AccessorDeclSyntax = "get { _\(raw: name) }"
+        let setter: AccessorDeclSyntax = """
+        set {
+            if newValue.count >= \(minExpr) {
+                _\(raw: name) = newValue
             }
         }
         """
-        return [accessor]
+        return [getter, setter]
+    }
+
+    public static func expansion(
+        of node: AttributeSyntax,
+        providingPeersOf declaration: some DeclSyntaxProtocol,
+        in context: some MacroExpansionContext
+    ) throws -> [DeclSyntax] {
+        makePeerStorage(for: declaration)
     }
 }
 
@@ -228,7 +310,7 @@ public struct MinLengthMacro: AccessorMacro {
 
 /// Enforces a maximum count/length on a `String` or `Array` property.
 /// Usage: `@MaxLength(100) var bio: String = ""`
-public struct MaxLengthMacro: AccessorMacro {
+public struct MaxLengthMacro: AccessorMacro, PeerMacro {
     public static func expansion(
         of node: AttributeSyntax,
         providingAccessorsOf declaration: some DeclSyntaxProtocol,
@@ -246,23 +328,34 @@ public struct MaxLengthMacro: AccessorMacro {
             return []
         }
 
-        let accessor: AccessorDeclSyntax = """
-        didSet {
-            if \(raw: name).count > \(maxExpr) {
-                let endIndex = \(raw: name).index(\(raw: name).startIndex, offsetBy: \(maxExpr))
-                \(raw: name) = String(\(raw: name)[\(raw: name).startIndex..<endIndex])
+        let getter: AccessorDeclSyntax = "get { _\(raw: name) }"
+        let setter: AccessorDeclSyntax = """
+        set {
+            if newValue.count > \(maxExpr) {
+                let endIndex = newValue.index(newValue.startIndex, offsetBy: \(maxExpr))
+                _\(raw: name) = String(newValue[newValue.startIndex..<endIndex])
+            } else {
+                _\(raw: name) = newValue
             }
         }
         """
-        return [accessor]
+        return [getter, setter]
+    }
+
+    public static func expansion(
+        of node: AttributeSyntax,
+        providingPeersOf declaration: some DeclSyntaxProtocol,
+        in context: some MacroExpansionContext
+    ) throws -> [DeclSyntax] {
+        makePeerStorage(for: declaration)
     }
 }
 
 // MARK: - NotNilMacro
 
-/// Generates a `didSet` that traps with a meaningful message if assigned `nil`.
+/// Traps with a meaningful message if the property is set to `nil`.
 /// Usage: `@NotNil var value: String? = "hello"`
-public struct NotNilMacro: AccessorMacro {
+public struct NotNilMacro: AccessorMacro, PeerMacro {
     public static func expansion(
         of node: AttributeSyntax,
         providingAccessorsOf declaration: some DeclSyntaxProtocol,
@@ -274,22 +367,32 @@ public struct NotNilMacro: AccessorMacro {
             return []
         }
 
-        let accessor: AccessorDeclSyntax = """
-        didSet {
-            if \(raw: name) == nil {
+        let getter: AccessorDeclSyntax = "get { _\(raw: name) }"
+        let setter: AccessorDeclSyntax = """
+        set {
+            if newValue == nil {
                 preconditionFailure("\\(type(of: self)).\(raw: name) must not be nil")
             }
+            _\(raw: name) = newValue
         }
         """
-        return [accessor]
+        return [getter, setter]
+    }
+
+    public static func expansion(
+        of node: AttributeSyntax,
+        providingPeersOf declaration: some DeclSyntaxProtocol,
+        in context: some MacroExpansionContext
+    ) throws -> [DeclSyntax] {
+        makePeerStorage(for: declaration)
     }
 }
 
 // MARK: - RangeMacro
 
 /// Asserts that a numeric property value is within a given range, trapping otherwise.
-/// Usage: `@Range(1, 10) var level: Int = 5`
-public struct RangeMacro: AccessorMacro {
+/// Usage: `@Range(min: 1, max: 10) var level: Int = 5`
+public struct RangeMacro: AccessorMacro, PeerMacro {
     public static func expansion(
         of node: AttributeSyntax,
         providingAccessorsOf declaration: some DeclSyntaxProtocol,
@@ -310,12 +413,22 @@ public struct RangeMacro: AccessorMacro {
         let lowerExpr = args[0].expression
         let upperExpr = args[1].expression
 
-        let accessor: AccessorDeclSyntax = """
-        didSet {
-            precondition(\(raw: name) >= \(lowerExpr) && \(raw: name) <= \(upperExpr),
-                "\\(type(of: self)).\(raw: name) must be in range \\(\(lowerExpr))...\\(\(upperExpr)), got \\(\(raw: name))")
+        let getter: AccessorDeclSyntax = "get { _\(raw: name) }"
+        let setter: AccessorDeclSyntax = """
+        set {
+            precondition(newValue >= \(lowerExpr) && newValue <= \(upperExpr),
+                "\\(type(of: self)).\(raw: name) must be in range \\(\(lowerExpr))...\\(\(upperExpr)), got \\(newValue)")
+            _\(raw: name) = newValue
         }
         """
-        return [accessor]
+        return [getter, setter]
+    }
+
+    public static func expansion(
+        of node: AttributeSyntax,
+        providingPeersOf declaration: some DeclSyntaxProtocol,
+        in context: some MacroExpansionContext
+    ) throws -> [DeclSyntax] {
+        makePeerStorage(for: declaration)
     }
 }

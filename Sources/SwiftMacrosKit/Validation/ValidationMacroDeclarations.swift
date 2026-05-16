@@ -27,7 +27,7 @@
 /// }
 /// ```
 @attached(accessor)
-public macro Validated(_ predicate: @escaping (Any) -> Bool) = #externalMacro(module: "SwiftMacrosKitMacros", type: "ValidatedMacro")
+public macro Validated<T>(_ predicate: @escaping (T) -> Bool) = #externalMacro(module: "SwiftMacrosKitMacros", type: "ValidatedMacro")
 
 /// Guards against empty `String` or `Array` values at assignment time.
 ///

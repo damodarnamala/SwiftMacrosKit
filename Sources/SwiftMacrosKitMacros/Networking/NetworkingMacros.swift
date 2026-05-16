@@ -133,14 +133,39 @@ public struct HeadersMacro: MemberMacro {
 
 // MARK: - QueryParamMacro
 
-public struct QueryParamMacro: AccessorMacro {
+public struct QueryParamMacro: AccessorMacro, PeerMacro {
     public static func expansion(
         of node: AttributeSyntax,
         providingAccessorsOf declaration: some DeclSyntaxProtocol,
         in context: some MacroExpansionContext
     ) throws -> [AccessorDeclSyntax] {
-        // QueryParam is a marker macro — the Endpoint macro reads it
-        return []
+        guard let varDecl = declaration.as(VariableDeclSyntax.self),
+              let name = varDecl.propertyName else {
+            return []
+        }
+        let getter: AccessorDeclSyntax = "get { _\(raw: name) }"
+        let setter: AccessorDeclSyntax = """
+        set {
+            _\(raw: name) = newValue
+        }
+        """
+        return [getter, setter]
+    }
+
+    public static func expansion(
+        of node: AttributeSyntax,
+        providingPeersOf declaration: some DeclSyntaxProtocol,
+        in context: some MacroExpansionContext
+    ) throws -> [DeclSyntax] {
+        guard let varDecl = declaration.as(VariableDeclSyntax.self),
+              let name = varDecl.propertyName,
+              let type = varDecl.propertyTypeName else {
+            return []
+        }
+        if let initialValue = varDecl.initialValue {
+            return ["var _\(raw: name): \(raw: type) = \(initialValue)"]
+        }
+        return ["var _\(raw: name): \(raw: type)"]
     }
 }
 

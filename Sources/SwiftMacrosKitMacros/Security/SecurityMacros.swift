@@ -7,9 +7,23 @@ import SwiftSyntax
 import SwiftSyntaxMacros
 import SwiftDiagnostics
 
+// MARK: - Shared Security peer helper
+
+private func makeSecurityPeerStorage(for declaration: some DeclSyntaxProtocol) -> [DeclSyntax] {
+    guard let varDecl = declaration.as(VariableDeclSyntax.self),
+          let name = varDecl.propertyName,
+          let type = varDecl.propertyTypeName else {
+        return []
+    }
+    if let initialValue = varDecl.initialValue {
+        return ["var _\(raw: name): \(raw: type) = \(initialValue)"]
+    }
+    return ["var _\(raw: name): \(raw: type)"]
+}
+
 // MARK: - EncryptedMacro
 
-public struct EncryptedMacro: AccessorMacro {
+public struct EncryptedMacro: AccessorMacro, PeerMacro {
     public static func expansion(
         of node: AttributeSyntax,
         providingAccessorsOf declaration: some DeclSyntaxProtocol,
@@ -20,8 +34,6 @@ public struct EncryptedMacro: AccessorMacro {
             context.addDiagnostic(.requiresProperty, at: node)
             return []
         }
-
-        let algorithm = node.labeledArguments.first(where: { $0.label == "algorithm" })?.expression.trimmedDescription ?? ".aes"
 
         let getter: AccessorDeclSyntax = """
         get {
@@ -37,11 +49,19 @@ public struct EncryptedMacro: AccessorMacro {
 
         return [getter, setter]
     }
+
+    public static func expansion(
+        of node: AttributeSyntax,
+        providingPeersOf declaration: some DeclSyntaxProtocol,
+        in context: some MacroExpansionContext
+    ) throws -> [DeclSyntax] {
+        makeSecurityPeerStorage(for: declaration)
+    }
 }
 
 // MARK: - HashedMacro
 
-public struct HashedMacro: AccessorMacro {
+public struct HashedMacro: AccessorMacro, PeerMacro {
     public static func expansion(
         of node: AttributeSyntax,
         providingAccessorsOf declaration: some DeclSyntaxProtocol,
@@ -53,38 +73,61 @@ public struct HashedMacro: AccessorMacro {
             return []
         }
 
+        let getter: AccessorDeclSyntax = "get { _\(raw: name) }"
         let setter: AccessorDeclSyntax = """
-        didSet {
-            // Hash using SHA256 via CryptoKit
-            if #available(macOS 10.15, iOS 13.0, *) {
-                import CryptoKit
-                let data = Data(\(raw: name).utf8)
-                let hash = SHA256.hash(data: data)
-                \(raw: name) = hash.map { String(format: "%02x", $0) }.joined()
-            }
+        set {
+            let data = Data(newValue.utf8)
+            let hash = SHA256.hash(data: data)
+            _\(raw: name) = hash.map { String(format: "%02x", $0) }.joined()
         }
         """
 
-        return [setter]
+        return [getter, setter]
+    }
+
+    public static func expansion(
+        of node: AttributeSyntax,
+        providingPeersOf declaration: some DeclSyntaxProtocol,
+        in context: some MacroExpansionContext
+    ) throws -> [DeclSyntax] {
+        makeSecurityPeerStorage(for: declaration)
     }
 }
 
 // MARK: - RedactedMacro
 
-public struct RedactedMacro: AccessorMacro {
+public struct RedactedMacro: AccessorMacro, PeerMacro {
     public static func expansion(
         of node: AttributeSyntax,
         providingAccessorsOf declaration: some DeclSyntaxProtocol,
         in context: some MacroExpansionContext
     ) throws -> [AccessorDeclSyntax] {
-        // Marker accessor — the description generation handles redaction
-        return []
+        guard let varDecl = declaration.as(VariableDeclSyntax.self),
+              let name = varDecl.propertyName else {
+            return []
+        }
+
+        let getter: AccessorDeclSyntax = "get { _\(raw: name) }"
+        let setter: AccessorDeclSyntax = """
+        set {
+            _\(raw: name) = newValue
+        }
+        """
+        return [getter, setter]
+    }
+
+    public static func expansion(
+        of node: AttributeSyntax,
+        providingPeersOf declaration: some DeclSyntaxProtocol,
+        in context: some MacroExpansionContext
+    ) throws -> [DeclSyntax] {
+        makeSecurityPeerStorage(for: declaration)
     }
 }
 
 // MARK: - SanitizedMacro
 
-public struct SanitizedMacro: AccessorMacro {
+public struct SanitizedMacro: AccessorMacro, PeerMacro {
     public static func expansion(
         of node: AttributeSyntax,
         providingAccessorsOf declaration: some DeclSyntaxProtocol,
@@ -96,16 +139,24 @@ public struct SanitizedMacro: AccessorMacro {
             return []
         }
 
-        let accessor: AccessorDeclSyntax = """
-        didSet {
-            let stripped = \(raw: name)
+        let getter: AccessorDeclSyntax = "get { _\(raw: name) }"
+        let setter: AccessorDeclSyntax = """
+        set {
+            _\(raw: name) = newValue
                 .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
                 .trimmingCharacters(in: .whitespacesAndNewlines)
-            \(raw: name) = stripped
         }
         """
 
-        return [accessor]
+        return [getter, setter]
+    }
+
+    public static func expansion(
+        of node: AttributeSyntax,
+        providingPeersOf declaration: some DeclSyntaxProtocol,
+        in context: some MacroExpansionContext
+    ) throws -> [DeclSyntax] {
+        makeSecurityPeerStorage(for: declaration)
     }
 }
 
@@ -146,7 +197,7 @@ public struct BiometricGatedMacro: PeerMacro {
 
 // MARK: - SecureEnclaveMacro
 
-public struct SecureEnclaveMacro: AccessorMacro {
+public struct SecureEnclaveMacro: AccessorMacro, PeerMacro {
     public static func expansion(
         of node: AttributeSyntax,
         providingAccessorsOf declaration: some DeclSyntaxProtocol,
@@ -171,5 +222,13 @@ public struct SecureEnclaveMacro: AccessorMacro {
         """
 
         return [getter, setter]
+    }
+
+    public static func expansion(
+        of node: AttributeSyntax,
+        providingPeersOf declaration: some DeclSyntaxProtocol,
+        in context: some MacroExpansionContext
+    ) throws -> [DeclSyntax] {
+        makeSecurityPeerStorage(for: declaration)
     }
 }
