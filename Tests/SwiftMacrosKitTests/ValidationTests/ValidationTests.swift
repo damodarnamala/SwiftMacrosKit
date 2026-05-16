@@ -33,15 +33,20 @@ final class ValidatedTests: XCTestCase {
             """,
             expandedSource: """
             var count: Int = 1 {
-                didSet {
+                get {
+                    _count
+                }
+                set {
                     let validate = {
                         $0 > 0
                     }
-                    if !validate(count) {
-                        count = oldValue
+                    if validate(newValue) {
+                        _count = newValue
                     }
                 }
             }
+
+            var _count: Int = 1
             """,
             macros: validationMacros
         )
@@ -68,6 +73,8 @@ final class ValidatedTests: XCTestCase {
             """,
             expandedSource: """
             var count: Int = 1
+
+            var _count: Int = 1
             """,
             diagnostics: [
                 DiagnosticSpec(message: MacroError.missingArguments.message, line: 1, column: 1)
@@ -87,12 +94,17 @@ final class NonEmptyTests: XCTestCase {
             """,
             expandedSource: """
             var name: String = "default" {
-                didSet {
-                    if name.isEmpty {
-                        name = oldValue
+                get {
+                    _name
+                }
+                set {
+                    if !newValue.isEmpty {
+                        _name = newValue
                     }
                 }
             }
+
+            var _name: String = "default"
             """,
             macros: validationMacros
         )
@@ -119,12 +131,17 @@ final class NonEmptyTests: XCTestCase {
             """,
             expandedSource: """
             var items: [Int] = [1] {
-                didSet {
-                    if items.isEmpty {
-                        items = oldValue
+                get {
+                    _items
+                }
+                set {
+                    if !newValue.isEmpty {
+                        _items = newValue
                     }
                 }
             }
+
+            var _items: [Int] = [1]
             """,
             macros: validationMacros
         )
@@ -141,15 +158,21 @@ final class ClampedTests: XCTestCase {
             """,
             expandedSource: """
             var percentage: Int = 50 {
-                didSet {
-                    if percentage < 0 {
-                        percentage = 0
-                    }
-                    if percentage > 100 {
-                        percentage = 100
+                get {
+                    _percentage
+                }
+                set {
+                    if newValue < 0 {
+                        _percentage = 0
+                    } else if newValue > 100 {
+                        _percentage = 100
+                    } else {
+                        _percentage = newValue
                     }
                 }
             }
+
+            var _percentage: Int = 50
             """,
             macros: validationMacros
         )
@@ -176,6 +199,8 @@ final class ClampedTests: XCTestCase {
             """,
             expandedSource: """
             var percentage: Int = 50
+
+            var _percentage: Int = 50
             """,
             diagnostics: [
                 DiagnosticSpec(message: MacroError.missingArguments.message, line: 1, column: 1)
@@ -195,13 +220,18 @@ final class RegexValidatedTests: XCTestCase {
             """,
             expandedSource: """
             var code: String = "123" {
-                didSet {
+                get {
+                    _code
+                }
+                set {
                     let pattern = "^[0-9]+$"
-                    if code.range(of: pattern, options: .regularExpression) == nil {
-                        code = oldValue
+                    if newValue.range(of: pattern, options: .regularExpression) != nil {
+                        _code = newValue
                     }
                 }
             }
+
+            var _code: String = "123"
             """,
             macros: validationMacros
         )
@@ -228,6 +258,8 @@ final class RegexValidatedTests: XCTestCase {
             """,
             expandedSource: """
             var code: String = "123"
+
+            var _code: String = "123"
             """,
             diagnostics: [
                 DiagnosticSpec(message: MacroError.missingArguments.message, line: 1, column: 1)
@@ -247,14 +279,19 @@ final class EmailTests: XCTestCase {
             """,
             expandedSource: """
             var email: String = "user@example.com" {
-                didSet {
+                get {
+                    _email
+                }
+                set {
                     let pattern = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\\\.[A-Za-z]{2,}"
                     let pred = NSPredicate(format: "SELF MATCHES %@", pattern)
-                    if !pred.evaluate(with: email) {
-                        email = oldValue
+                    if pred.evaluate(with: newValue) {
+                        _email = newValue
                     }
                 }
             }
+
+            var _email: String = "user@example.com"
             """,
             macros: validationMacros
         )
@@ -281,14 +318,19 @@ final class EmailTests: XCTestCase {
             """,
             expandedSource: """
             var contact: String = "test@test.org" {
-                didSet {
+                get {
+                    _contact
+                }
+                set {
                     let pattern = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\\\.[A-Za-z]{2,}"
                     let pred = NSPredicate(format: "SELF MATCHES %@", pattern)
-                    if !pred.evaluate(with: contact) {
-                        contact = oldValue
+                    if pred.evaluate(with: newValue) {
+                        _contact = newValue
                     }
                 }
             }
+
+            var _contact: String = "test@test.org"
             """,
             macros: validationMacros
         )
@@ -305,12 +347,17 @@ final class URLValidatedTests: XCTestCase {
             """,
             expandedSource: """
             var link: String = "https://example.com" {
-                didSet {
-                    if URL(string: link) == nil {
-                        link = oldValue
+                get {
+                    _link
+                }
+                set {
+                    if URL(string: newValue) != nil {
+                        _link = newValue
                     }
                 }
             }
+
+            var _link: String = "https://example.com"
             """,
             macros: validationMacros
         )
@@ -337,12 +384,17 @@ final class URLValidatedTests: XCTestCase {
             """,
             expandedSource: """
             var website: String = "https://swift.org" {
-                didSet {
-                    if URL(string: website) == nil {
-                        website = oldValue
+                get {
+                    _website
+                }
+                set {
+                    if URL(string: newValue) != nil {
+                        _website = newValue
                     }
                 }
             }
+
+            var _website: String = "https://swift.org"
             """,
             macros: validationMacros
         )
@@ -359,12 +411,17 @@ final class MinLengthTests: XCTestCase {
             """,
             expandedSource: """
             var username: String = "abc" {
-                didSet {
-                    if username.count < 3 {
-                        username = oldValue
+                get {
+                    _username
+                }
+                set {
+                    if newValue.count >= 3 {
+                        _username = newValue
                     }
                 }
             }
+
+            var _username: String = "abc"
             """,
             macros: validationMacros
         )
@@ -391,6 +448,8 @@ final class MinLengthTests: XCTestCase {
             """,
             expandedSource: """
             var username: String = "abc"
+
+            var _username: String = "abc"
             """,
             diagnostics: [
                 DiagnosticSpec(message: MacroError.missingArguments.message, line: 1, column: 1)
@@ -410,13 +469,20 @@ final class MaxLengthTests: XCTestCase {
             """,
             expandedSource: """
             var bio: String = "" {
-                didSet {
-                    if bio.count > 100 {
-                        let endIndex = bio.index(bio.startIndex, offsetBy: 100)
-                        bio = String(bio[bio.startIndex ..< endIndex])
+                get {
+                    _bio
+                }
+                set {
+                    if newValue.count > 100 {
+                        let endIndex = newValue.index(newValue.startIndex, offsetBy: 100)
+                        _bio = String(newValue[newValue.startIndex ..< endIndex])
+                    } else {
+                        _bio = newValue
                     }
                 }
             }
+
+            var _bio: String = ""
             """,
             macros: validationMacros
         )
@@ -443,6 +509,8 @@ final class MaxLengthTests: XCTestCase {
             """,
             expandedSource: """
             var bio: String = ""
+
+            var _bio: String = ""
             """,
             diagnostics: [
                 DiagnosticSpec(message: MacroError.missingArguments.message, line: 1, column: 1)
@@ -462,12 +530,18 @@ final class NotNilTests: XCTestCase {
             """,
             expandedSource: """
             var value: String? = "hello" {
-                didSet {
-                    if value == nil {
+                get {
+                    _value
+                }
+                set {
+                    if newValue == nil {
                         preconditionFailure("\\(type(of: self)).value must not be nil")
                     }
+                    _value = newValue
                 }
             }
+
+            var _value: String? = "hello"
             """,
             macros: validationMacros
         )
@@ -494,12 +568,18 @@ final class NotNilTests: XCTestCase {
             """,
             expandedSource: """
             var data: Int? = 42 {
-                didSet {
-                    if data == nil {
+                get {
+                    _data
+                }
+                set {
+                    if newValue == nil {
                         preconditionFailure("\\(type(of: self)).data must not be nil")
                     }
+                    _data = newValue
                 }
             }
+
+            var _data: Int? = 42
             """,
             macros: validationMacros
         )
@@ -516,11 +596,17 @@ final class RangeTests: XCTestCase {
             """,
             expandedSource: """
             var level: Int = 5 {
-                didSet {
-                    precondition(level >= 1 && level <= 10,
-                        "\\(type(of: self)).level must be in range \\(1)...\\(10), got \\(level)")
+                get {
+                    _level
+                }
+                set {
+                    precondition(newValue >= 1 && newValue <= 10,
+                        "\\(type(of: self)).level must be in range \\(1)...\\(10), got \\(newValue)")
+                    _level = newValue
                 }
             }
+
+            var _level: Int = 5
             """,
             macros: validationMacros
         )
@@ -547,6 +633,8 @@ final class RangeTests: XCTestCase {
             """,
             expandedSource: """
             var level: Int = 5
+
+            var _level: Int = 5
             """,
             diagnostics: [
                 DiagnosticSpec(message: MacroError.missingArguments.message, line: 1, column: 1)

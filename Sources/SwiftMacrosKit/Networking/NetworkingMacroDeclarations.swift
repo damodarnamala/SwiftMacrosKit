@@ -41,6 +41,7 @@ public macro Headers(_ headers: [String: String]) = #externalMacro(module: "Swif
 ///
 /// **Usage:** `@QueryParam var page: Int = 1`
 @attached(accessor)
+@attached(peer, names: prefixed(_))
 public macro QueryParam() = #externalMacro(module: "SwiftMacrosKitMacros", type: "QueryParamMacro")
 
 /// Injects an Authorization Bearer header from a token provider.

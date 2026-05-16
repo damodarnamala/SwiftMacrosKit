@@ -19,6 +19,7 @@ public macro ViewState() = #externalMacro(module: "SwiftMacrosKitMacros", type: 
 ///
 /// **Usage:** `@BindablePlus var viewModel: MyViewModel`
 @attached(accessor)
+@attached(peer, names: prefixed(_))
 public macro BindablePlus() = #externalMacro(module: "SwiftMacrosKitMacros", type: "BindablePlusMacro")
 
 /// Generates static style tokens (spacing, corner radius, etc.).

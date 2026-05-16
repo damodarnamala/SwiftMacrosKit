@@ -34,6 +34,8 @@ final class EncryptedTests: XCTestCase {
                     _secret = newValue
                 }
             }
+
+            var _secret: String = ""
             """,
             macros: securityMacros
         )
@@ -65,13 +67,17 @@ final class SanitizedTests: XCTestCase {
             """,
             expandedSource: """
             var input: String = "" {
-                didSet {
-                    let stripped = input
+                get {
+                    _input
+                }
+                set {
+                    _input = newValue
                         .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
                         .trimmingCharacters(in: .whitespacesAndNewlines)
-                    input = stripped
                 }
             }
+
+            var _input: String = ""
             """,
             macros: securityMacros
         )
@@ -151,13 +157,22 @@ final class BiometricGatedTests: XCTestCase {
 // MARK: - Redacted Tests
 
 final class RedactedTests: XCTestCase {
-    func testRedactedIsMarker() throws {
+    func testRedactedOnProperty() throws {
         assertMacroExpansion(
             """
             @Redacted var ssn: String = ""
             """,
             expandedSource: """
-            var ssn: String = ""
+            var ssn: String = "" {
+                get {
+                    _ssn
+                }
+                set {
+                    _ssn = newValue
+                }
+            }
+
+            var _ssn: String = ""
             """,
             macros: securityMacros
         )
@@ -181,6 +196,8 @@ final class SecureEnclaveTests: XCTestCase {
                     _key = newValue
                 }
             }
+
+            var _key: String = ""
             """,
             macros: securityMacros
         )

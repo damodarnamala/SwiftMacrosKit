@@ -205,13 +205,22 @@ final class HapticFeedbackTests: XCTestCase {
 // MARK: - BindablePlus Tests
 
 final class BindablePlusTests: XCTestCase {
-    func testBindablePlusIsMarker() throws {
+    func testBindablePlusOnProperty() throws {
         assertMacroExpansion(
             """
             @BindablePlus var value: Int = 0
             """,
             expandedSource: """
-            var value: Int = 0
+            var value: Int = 0 {
+                get {
+                    _value
+                }
+                set {
+                    _value = newValue
+                }
+            }
+
+            var _value: Int = 0
             """,
             macros: swiftUIMacros
         )

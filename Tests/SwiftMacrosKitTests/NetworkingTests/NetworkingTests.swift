@@ -222,13 +222,22 @@ final class MockResponseTests: XCTestCase {
 // MARK: - QueryParam Tests
 
 final class QueryParamTests: XCTestCase {
-    func testQueryParamIsMarker() throws {
+    func testQueryParamOnProperty() throws {
         assertMacroExpansion(
             """
             @QueryParam var page: Int = 1
             """,
             expandedSource: """
-            var page: Int = 1
+            var page: Int = 1 {
+                get {
+                    _page
+                }
+                set {
+                    _page = newValue
+                }
+            }
+
+            var _page: Int = 1
             """,
             macros: networkingMacros
         )
