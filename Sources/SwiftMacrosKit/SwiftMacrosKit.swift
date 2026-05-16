@@ -10,3 +10,7 @@
 //      Networking/, Testing/, SwiftUI/, Security/,
 //      Logging/, Patterns/, Utilities/
 
+public enum SwiftMacrosKit {
+    public static let version = "1.0.0"
+}
+
