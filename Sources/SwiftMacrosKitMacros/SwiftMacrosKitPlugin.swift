@@ -1,0 +1,122 @@
+// SwiftMacrosKitPlugin.swift
+// SwiftMacrosKit — Compiler Plugin Entry Point
+// Author: SwiftMacrosKit Contributors
+
+import SwiftCompilerPlugin
+import SwiftSyntaxMacros
+
+@main
+struct SwiftMacrosKitPlugin: CompilerPlugin {
+    let providingMacros: [Macro.Type] = [
+        // [A] Creational Patterns
+        SingletonMacro.self,
+        BuilderMacro.self,
+        FactoryMacro.self,
+        PrototypeMacro.self,
+        FluentBuilderMacro.self,
+        StaticFactoryMacro.self,
+        LazyInitMacro.self,
+        PoolMacro.self,
+        MultitonMacro.self,
+        InjectableMacro.self,
+        AutoInitMacro.self,
+        DefaultInitMacro.self,
+        // [B] Validation
+        ValidatedMacro.self,
+        NonEmptyMacro.self,
+        ClampedMacro.self,
+        RegexValidatedMacro.self,
+        EmailMacro.self,
+        URLValidatedMacro.self,
+        MinLengthMacro.self,
+        MaxLengthMacro.self,
+        NotNilMacro.self,
+        RangeMacro.self,
+        // [C] Async & Concurrency
+        RetryMacro.self,
+        TimeoutMacro.self,
+        DebounceMacro.self,
+        ThrottleMacro.self,
+        BackgroundActorMacro.self,
+        AsyncCachedMacro.self,
+        RateLimitMacro.self,
+        ConcurrentMacro.self,
+        SerialMacro.self,
+        // [D] Persistence & Storage
+        UserDefaultMacro.self,
+        KeychainMacro.self,
+        CloudSyncMacro.self,
+        FileStoredMacro.self,
+        CoreDataEntityMacro.self,
+        SwiftDataModelMacro.self,
+        CachedMacro.self,
+        PersistedMacro.self,
+        // [E] Networking
+        EndpointMacro.self,
+        GETMacro.self,
+        POSTMacro.self,
+        HeadersMacro.self,
+        QueryParamMacro.self,
+        BearerMacro.self,
+        MultipartMacro.self,
+        MockResponseMacro.self,
+        // [F] Testing & Mocking
+        MockMacro.self,
+        SpyMacro.self,
+        StubMacro.self,
+        TestFixtureMacro.self,
+        SnapshotMacro.self,
+        GivenMacro.self,
+        WhenMacro.self,
+        ThenMacro.self,
+        BenchmarkMacro.self,
+        AssertThrowsMacro.self,
+        // [G] SwiftUI & UI
+        PreviewProviderMacro.self,
+        ViewStateMacro.self,
+        BindablePlusMacro.self,
+        StyleSheetMacro.self,
+        ThemedMacro.self,
+        AccessibleMacro.self,
+        AnimatablePlusMacro.self,
+        HapticFeedbackMacro.self,
+        OrientationAwareMacro.self,
+        SafeAreaMacro.self,
+        // [H] Security
+        EncryptedMacro.self,
+        HashedMacro.self,
+        RedactedMacro.self,
+        SanitizedMacro.self,
+        BiometricGatedMacro.self,
+        SecureEnclaveMacro.self,
+        // [I] Logging & Observability
+        LoggedMacro.self,
+        TracedMacro.self,
+        MeasuredMacro.self,
+        OSLoggedMacro.self,
+        CrashlyticMacro.self,
+        AnalyticsMacro.self,
+        // [J] Design Patterns
+        ObserverMacro.self,
+        CommandMacro.self,
+        DecoratorMacro.self,
+        CompositeMacro.self,
+        StrategyMacro.self,
+        StateMachineMacro.self,
+        EventBusMacro.self,
+        PipelineMacro.self,
+        CQRSMacro.self,
+        RepositoryMacro.self,
+        // [K] Utilities & DX
+        EquatablePlusMacro.self,
+        ComparablePlusMacro.self,
+        CopyableMacro.self,
+        StringConvertibleMacro.self,
+        CaseIterablePlusMacro.self,
+        DefaultableMacro.self,
+        DecodablePlusMacro.self,
+        EncodablePlusMacro.self,
+        FlaggedMacro.self,
+        DeprecatedPlusMacro.self,
+    ]
+}
